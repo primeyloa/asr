@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import DocumentPicker from 'expo-document-picker';
-import { Upload, Play, Save, Sparkles, Music } from 'lucide-react-native';
+import { Upload, Play, Save, Sparkles, Music, Cloud, Search } from 'lucide-react-native';
 import { TwiDialect } from '../types';
 import { twiAsrEngine } from '../services/twiAsrEngine';
 import { sqliteService } from '../services/sqliteService';
@@ -77,105 +77,331 @@ export const AudioFileUploadScreen: React.FC<AudioFileUploadScreenProps> = ({ se
     setTimeout(() => setIsSaved(false), 3000);
   };
 
+  const progressPercentage = transcriptionResult ? Math.round(transcriptionResult.confidenceScore * 100) : 0;
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Pressable onPress={handlePickFile} style={styles.dropArea}>
-        <View style={styles.iconCircle}>
-          <Upload size={24} color="#34d399" />
+      <View style={styles.screenHeader}>
+        <View style={styles.titleBlock}>
+          <Text style={styles.screenTitle}>Upload Audio</Text>
+          <Text style={styles.screenSubtitle}>Convert existing recordings into structured text</Text>
         </View>
-        <Text style={styles.heading}>Attach Audio File for Twi ASR</Text>
-        <Text style={styles.helperText}>Pick an audio file from your device to process</Text>
+        <View style={styles.avatarCircle} accessible accessibilityRole="image" accessibilityLabel="User avatar" />
+      </View>
+
+      <Pressable onPress={handlePickFile} style={styles.uploadZone} accessibilityRole="button" accessibilityLabel="Select audio file">
+        <View style={styles.uploadIconCircle}>
+          <Cloud size={28} color="#6366f1" />
+        </View>
+        <Text style={styles.uploadHeading}>Select audio file</Text>
+        <Text style={styles.uploadHint}>Supported formats: MP3, WAV, M4A (Max 50MB)</Text>
       </Pressable>
 
-      <View style={styles.samplePanel}>
-        <Text style={styles.sampleTitle}>Or Select Demo Audio File</Text>
-        {SAMPLE_AUDIO_ATTACHMENTS.map((sample, idx) => (
-          <Pressable key={idx} onPress={() => processAttachedFile(sample)} style={styles.sampleCard}>
-            <View style={styles.sampleRow}>
-              <View style={styles.sampleIcon}>
-                <Music size={16} color="#818cf8" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.sampleName}>{sample.name}</Text>
-                <Text style={styles.sampleMeta}>{sample.desc} • {sample.size}</Text>
-              </View>
-            </View>
-            <View style={styles.sampleButton}>
-              <Play size={14} color="#34d399" />
-              <Text style={styles.sampleButtonText}>Process</Text>
-            </View>
-          </Pressable>
-        ))}
+      <View style={styles.statusCard}>
+        <View style={styles.processingTopRow}>
+          <View style={styles.processingLabel}>
+            <Music size={16} color="#6366f1" />
+            <Text style={styles.processingLabelText}>{selectedFile ? selectedFile.name : 'No file selected'}</Text>
+          </View>
+          <Text style={styles.progressPercentage}>{selectedFile ? progressPercentage + '%' : '—'}</Text>
+        </View>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${selectedFile ? progressPercentage : 0}%` }]} />
+        </View>
+        <View style={styles.processingNoteRow}>
+          <Sparkles size={14} color="#6366f1" />
+          <Text style={styles.processingNoteText}>Applying advanced noise cancellation and speaker diarization...</Text>
+        </View>
       </View>
 
       {isTranscribing ? (
-        <View style={styles.statusCard}>
-          <ActivityIndicator color="#34d399" />
-          <Text style={styles.statusTitle}>Running Conformer CTC Beam Search</Text>
-          <Text style={styles.statusText}>Decoding audio tokens for {selectedFile?.name ?? 'selected file'}...</Text>
+        <View style={styles.spinnerCard}>
+          <ActivityIndicator size="small" color="#6366f1" />
+          <Text style={styles.spinnerText}>Transcribing selected audio…</Text>
         </View>
       ) : null}
 
-      {transcriptionResult && !isTranscribing ? (
-        <View style={styles.resultCard}>
-          <View style={styles.resultHeader}>
-            <View style={styles.headerRow}>
-              <Sparkles size={16} color="#34d399" />
-              <Text style={styles.resultTitle}>Transcription Complete</Text>
-            </View>
-            <Text style={styles.score}>{(transcriptionResult.confidenceScore * 100).toFixed(1)}% match</Text>
+      {transcriptionResult ? (
+        <View style={styles.previewCard}>
+          <View style={styles.previewHeader}>
+            <Text style={styles.previewTitle}>Transcription Preview</Text>
           </View>
-          <Text style={styles.fileLabel}>File: {selectedFile?.name} ({transcriptionResult.durationSeconds}s)</Text>
-          <View style={styles.transcriptBox}>
-            <Text style={styles.transcriptText}>{transcriptionResult.twiText}</Text>
-          </View>
-          {transcriptionResult.englishTranslation ? (
-            <View style={styles.translationBox}>
-              <Text style={styles.translationLabel}>English Translation:</Text>
-              <Text style={styles.translationText}>{transcriptionResult.englishTranslation}</Text>
-            </View>
-          ) : null}
-          <Pressable onPress={handleSaveToDb} style={[styles.saveButton, isSaved && styles.saveButtonActive]}>
-            <Save size={14} color={isSaved ? '#34d399' : '#052e16'} />
+          <Text style={styles.previewText} numberOfLines={4}>
+            {transcriptionResult.twiText}
+          </Text>
+          <Pressable onPress={handleSaveToDb} style={[styles.saveButton, isSaved && styles.saveButtonActive]} accessibilityRole="button" accessibilityLabel="Save transcription">
+            <Save size={14} color={isSaved ? '#6366f1' : '#ffffff'} />
             <Text style={[styles.saveButtonText, isSaved && styles.saveButtonTextActive]}>{isSaved ? 'Saved to SQLite DB' : 'Save Transcript'}</Text>
           </Pressable>
         </View>
       ) : null}
+
+      <View style={styles.samplePanel}>
+        <Text style={styles.sampleTitle}>Demo Audio Files</Text>
+        {SAMPLE_AUDIO_ATTACHMENTS.map((sample, idx) => (
+          <Pressable
+            key={idx}
+            onPress={() => processAttachedFile(sample)}
+            style={styles.sampleCard}
+            accessibilityRole="button"
+            accessibilityLabel={`Process demo file ${sample.name}`}
+          >
+            <View style={styles.sampleRow}>
+              <View style={styles.sampleIcon}>
+                <Music size={16} color="#6366f1" />
+              </View>
+              <View style={styles.sampleTextBlock}>
+                <Text style={styles.sampleName}>{sample.name}</Text>
+                <Text style={styles.sampleMeta}>{sample.desc} • {sample.size}</Text>
+              </View>
+            </View>
+            <View style={styles.sampleAction}>
+              <Play size={14} color="#6366f1" />
+              <Text style={styles.sampleActionText}>Process</Text>
+            </View>
+          </Pressable>
+        ))}
+      </View>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 16, gap: 12, backgroundColor: '#020617' },
-  dropArea: { backgroundColor: '#020617', borderRadius: 18, padding: 20, borderWidth: 2, borderStyle: 'dashed', borderColor: '#334155', alignItems: 'center' },
-  iconCircle: { width: 48, height: 48, borderRadius: 14, backgroundColor: 'rgba(52, 211, 153, 0.16)', borderWidth: 1, borderColor: 'rgba(52, 211, 153, 0.3)', alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-  heading: { color: '#f8fafc', fontSize: 14, fontWeight: '700' },
-  helperText: { color: '#94a3b8', fontSize: 12, marginTop: 6, textAlign: 'center' },
-  samplePanel: { backgroundColor: '#0f172a', borderRadius: 16, padding: 12, borderWidth: 1, borderColor: '#1f2937', gap: 8 },
-  sampleTitle: { color: '#94a3b8', fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
-  sampleCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#111827', borderRadius: 12, padding: 10, borderWidth: 1, borderColor: '#374151' },
-  sampleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  sampleIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(129, 140, 248, 0.16)', alignItems: 'center', justifyContent: 'center' },
-  sampleName: { color: '#f8fafc', fontSize: 12, fontWeight: '600' },
-  sampleMeta: { color: '#94a3b8', fontSize: 11, marginTop: 2 },
-  sampleButton: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(52, 211, 153, 0.16)' },
-  sampleButtonText: { color: '#34d399', fontSize: 11, fontWeight: '700' },
-  statusCard: { backgroundColor: '#020617', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: '#1f2937', alignItems: 'center', gap: 6 },
-  statusTitle: { color: '#f8fafc', fontSize: 12, fontWeight: '700' },
-  statusText: { color: '#94a3b8', fontSize: 11, textAlign: 'center' },
-  resultCard: { backgroundColor: '#0f172a', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#1f2937', gap: 10 },
-  resultHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  resultTitle: { color: '#f8fafc', fontSize: 12, fontWeight: '700' },
-  score: { color: '#34d399', fontSize: 11, fontWeight: '700' },
-  fileLabel: { color: '#94a3b8', fontSize: 11 },
-  transcriptBox: { backgroundColor: '#020617', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#1f2937' },
-  transcriptText: { color: '#f8fafc', fontSize: 13 },
-  translationBox: { backgroundColor: '#020617', borderRadius: 12, padding: 10, borderWidth: 1, borderColor: '#1f2937' },
-  translationLabel: { color: '#34d399', fontSize: 11, fontWeight: '700', marginBottom: 4 },
-  translationText: { color: '#cbd5e1', fontSize: 12 },
-  saveButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, backgroundColor: '#34d399' },
-  saveButtonActive: { backgroundColor: 'rgba(52, 211, 153, 0.16)', borderWidth: 1, borderColor: 'rgba(52, 211, 153, 0.35)' },
-  saveButtonText: { color: '#052e16', fontSize: 12, fontWeight: '700' },
-  saveButtonTextActive: { color: '#34d399' },
+  container: {
+    padding: 16,
+    gap: 16,
+    backgroundColor: '#f9fafb',
+  },
+  screenHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  titleBlock: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  screenTitle: {
+    color: '#111827',
+    fontSize: 24,
+    fontWeight: '800',
+  },
+  screenSubtitle: {
+    color: '#4b5563',
+    fontSize: 14,
+    marginTop: 4,
+    lineHeight: 20,
+  },
+  avatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#eef2ff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  uploadZone: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#6366f1',
+    alignItems: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 24,
+  },
+  uploadIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#eef2ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
+  },
+  uploadHeading: {
+    color: '#111827',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  uploadHint: {
+    color: '#4b5563',
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  statusCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    padding: 18,
+    gap: 12,
+  },
+  processingTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  processingLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  processingLabelText: {
+    color: '#111827',
+    fontSize: 14,
+    fontWeight: '700',
+    flexShrink: 1,
+  },
+  progressPercentage: {
+    color: '#6366f1',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  progressTrack: {
+    width: '100%',
+    height: 8,
+    backgroundColor: '#eef2ff',
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: '#6366f1',
+  },
+  processingNoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  processingNoteText: {
+    color: '#4b5563',
+    fontSize: 13,
+    flex: 1,
+    lineHeight: 18,
+  },
+  spinnerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  spinnerText: {
+    color: '#4b5563',
+    fontSize: 13,
+  },
+  previewCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    gap: 12,
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  previewTitle: {
+    color: '#111827',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  previewText: {
+    color: '#4b5563',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  saveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 18,
+    backgroundColor: '#6366f1',
+  },
+  saveButtonActive: {
+    backgroundColor: '#eef2ff',
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
+  },
+  saveButtonText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  saveButtonTextActive: {
+    color: '#6366f1',
+  },
+  samplePanel: {
+    gap: 12,
+  },
+  sampleTitle: {
+    color: '#6b7280',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  sampleCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sampleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  sampleIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: '#eef2ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sampleTextBlock: {
+    flex: 1,
+  },
+  sampleName: {
+    color: '#111827',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  sampleMeta: {
+    color: '#6b7280',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  sampleAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: '#eef2ff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  sampleActionText: {
+    color: '#6366f1',
+    fontSize: 12,
+    fontWeight: '700',
+  },
 });

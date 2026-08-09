@@ -16,7 +16,7 @@ import { RightSidebarDrawer } from './components/RightSidebarDrawer';
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('realtime');
   const [selectedDialect, setSelectedDialect] = useState<TwiDialect>('asante');
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [recordCount, setRecordCount] = useState(0);
   const [selectedRecord, setSelectedRecord] = useState<TranscriptionRecord | null>(null);
@@ -55,7 +55,7 @@ export default function App() {
 
   return (
     <SafeAreaView style={[styles.container, isDarkMode ? styles.dark : styles.light]}>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={isDarkMode ? '#020617' : '#f9fafb'} />
 
       <HeaderBar
         user={user}
@@ -137,13 +137,12 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    marginTop: 5
   },
   dark: {
     backgroundColor: '#020617',
   },
   light: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f9fafb',
   },
   content: {
     flex: 1,

@@ -31,9 +31,9 @@ export const NavigationTabBar: React.FC<NavigationTabBarProps> = ({
   }
 
   const tabs: { id: NavTab; label: string; icon: React.ReactNode; badge?: number }[] = [
-    { id: 'realtime', label: 'Live Speech', icon: <Mic size={20} color="#34d399" /> },
-    { id: 'upload', label: 'Attach File', icon: <FileAudio size={20} color="#34d399" /> },
-    { id: 'history', label: 'History', icon: <History size={20} color="#34d399" />, badge: recordCount },
+    { id: 'realtime', label: 'Record', icon: <Mic size={20} color={activeTab === 'realtime' ? '#6366f1' : '#9ca3af'} /> },
+    { id: 'upload', label: 'Upload', icon: <FileAudio size={20} color={activeTab === 'upload' ? '#6366f1' : '#9ca3af'} /> },
+    { id: 'history', label: 'History', icon: <History size={20} color={activeTab === 'history' ? '#6366f1' : '#9ca3af'} />, badge: recordCount },
   ];
 
   return (
@@ -41,7 +41,15 @@ export const NavigationTabBar: React.FC<NavigationTabBarProps> = ({
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
         return (
-          <Pressable key={tab.id} onPress={() => setActiveTab(tab.id)} style={[styles.tab, isActive && styles.activeTab]}>
+          <Pressable
+            key={tab.id}
+            onPress={() => setActiveTab(tab.id)}
+            style={[styles.tab, isActive && styles.activeTab]}
+            accessibilityRole="button"
+            accessibilityLabel={`Go to ${tab.label}`}
+            accessibilityState={{ selected: isActive }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <View style={styles.iconWrap}>
               {tab.icon}
               {tab.badge !== undefined && tab.badge > 0 && (
